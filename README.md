@@ -43,37 +43,52 @@ If you have found any bugs or just want to see some new features in Multrin, fee
 
 ## Running
 
-Before running Multrin in development mode, please ensure you have [`Node.js`](https://nodejs.org/en/) installed on your machine.
+### Prerequisites
 
-When running on Windows, make sure you have build tools installed. You can install them by running as **administrator**:
+- **Node.js** 18+ — [nodejs.org](https://nodejs.org/en/)
+- **C++ Build Tools** — required to compile native modules (`iohook`, `node-window-manager`, `extract-file-icon`)
+  - **Windows**: Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/) — choose the **"Desktop development with C++"** workload. VS 2022 or newer recommended.
+  - **macOS**: Install Xcode Command Line Tools — run `xcode-select --install` in Terminal.
 
-```bash
-$ npm i -g windows-build-tools
-```
+> **Note:** `npm i -g windows-build-tools` (referenced in older guides) is deprecated and no longer works. Use Visual Studio Build Tools directly as described above.
 
-Firstly, run this command to install all needed dependencies. If you have encountered any problems, please report it. I will try to help as much as I can.
+### Install & run
 
-```bash
-$ npm i
-```
-
-Now the native modules need to be rebuilt with Electron's headers. To do that, please run:
+Install all dependencies. This also automatically rebuilds native modules for Electron and downloads the correct `iohook` binary — no extra steps needed.
 
 ```bash
-$ npm run rebuild
+npm install
 ```
 
-The given command below will run Multrin in the development mode.
+Build the app (compiles TypeScript + bundles with webpack):
 
 ```bash
-$ npm run dev
+npm run build
 ```
 
-And in other terminal:
+Start the app:
 
 ```bash
-$ npm start
+npm start
 ```
+
+### Development mode (with hot reload)
+
+Run the watcher in one terminal — it rebuilds automatically when you change source files:
+
+```bash
+npm run watch
+```
+
+Then in a second terminal, start Electron:
+
+```bash
+npm start
+```
+
+### Compatibility notes
+
+This project uses Webpack 4 and Electron 8. On Node.js 17+ and Python 3.12+, the build scripts handle the required compatibility flags automatically (`--openssl-legacy-provider`, `GYP_DEFINES=openssl_fips=`). You do not need to set these manually.
 
 ### Sponsors
 

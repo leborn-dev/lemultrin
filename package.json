@@ -22,16 +22,17 @@
     "url": "https://github.com/sentialx/multrin/issues"
   },
   "scripts": {
-    "watch": "concurrently \"cross-env ENV='dev' webpack-dev-server --config webpack.config.renderer.js\" \" cross-env ENV='dev' webpack\"",
-    "build": "concurrently \"webpack --config webpack.config.renderer.js\" \"webpack\"",
+    "watch": "cross-env NODE_OPTIONS=--openssl-legacy-provider concurrently \"cross-env ENV='dev' webpack-dev-server --config webpack.config.renderer.js\" \" cross-env ENV='dev' webpack\"",
+    "build": "cross-env NODE_OPTIONS=--openssl-legacy-provider concurrently \"webpack --config webpack.config.renderer.js\" \"webpack\"",
     "start": "cross-env ENV='dev' electron .",
+    "postinstall": "cross-env GYP_DEFINES=openssl_fips= electron-builder install-app-deps && node node_modules/iohook/install.js",
     "compile-win32": "npm run build && electron-builder -w -p always",
     "compile-darwin": "npm run build && electron-builder -m -p always",
     "compile-linux": "npm run build && electron-builder -l -p always",
     "compile": "node scripts/compile.js",
     "lint": "eslint \"src/**/*.ts*\" \"src/**/*.tsx*\"",
     "lint-fix": "npm run lint -- --fix",
-    "rebuild": "electron-builder install-app-deps"
+    "rebuild": "cross-env GYP_DEFINES=openssl_fips= electron-builder install-app-deps"
   },
   "devDependencies": {
     "@types/gsap": "1.20.2",
