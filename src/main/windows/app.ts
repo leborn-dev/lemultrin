@@ -16,7 +16,7 @@ import { Container } from '../container';
 import * as fileIcon from 'extract-file-icon';
 import { iohook } from '..';
 import { MenuWindow } from './menu';
-import Vibrant = require('node-vibrant');
+import { getIconPalette } from '../icon-palette';
 
 const containsPoint = (bounds: any, point: any) => {
   return (
@@ -433,15 +433,15 @@ export class AppWindow extends BrowserWindow {
     });
 
     try {
-      Vibrant.from(icon)
-        .getPalette()
+      getIconPalette(icon)
         .then((palette) => {
+          if (!palette || !palette.Vibrant) return;
           this.webContents.send(
             'tab-background',
             container.id,
             palette.Vibrant.hex,
           );
-        });
+        }).catch((error) => console.error(error));
     } catch (e) {
       console.error(e);
     }

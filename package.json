@@ -32,7 +32,8 @@
     "lint": "eslint \"src/**/*.ts*\" \"src/**/*.tsx*\"",
     "lint-fix": "npm run lint -- --fix",
     "rebuild": "electron-builder install-app-deps",
-    "test:installer": "node tests/installer-multipart.cjs"
+    "test:installer": "node tests/installer-multipart.cjs",
+    "test:icon-palette": "node tests/icon-palette.cjs"
   },
   "devDependencies": {
     "@types/gsap": "1.20.2",
@@ -59,7 +60,7 @@
     "html-webpack-plugin": "^4.2.0",
     "mobx": "5.15.4",
     "mobx-react-lite": "^2.0.6",
-    "node-vibrant": "^3.1.5",
+    "node-vibrant": "3.1.6",
     "prettier": "2.0.4",
     "react": "16.13.1",
     "react-dom": "16.13.1",
