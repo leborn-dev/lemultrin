@@ -34,7 +34,7 @@
     "rebuild": "electron-builder install-app-deps",
     "test:icon-palette": "node tests/icon-palette.cjs && node tests/palette-regression.cjs",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/input-hook.cjs && node tests/icon-palette.cjs && node tests/palette-regression.cjs && node tests/window-security.cjs && node tests/dev-server.cjs && node tests/window-lifecycle.cjs",
+    "test": "node tests/input-hook.cjs && node tests/icon-palette.cjs && node tests/palette-regression.cjs && node tests/window-security.cjs && node tests/dev-server.cjs && node tests/window-lifecycle.cjs && node tests/smoke-isolation.cjs",
     "package": "npm run build && electron-builder --dir --publish never"
   },
   "devDependencies": {

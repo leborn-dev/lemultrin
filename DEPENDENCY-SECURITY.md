@@ -90,6 +90,21 @@ On macOS 27.2 arm64, host Node **22.23.1**, npm **10.9.8**:
   supports remote window lookup, loads native window operations and blocks
   external popups. No signing, release upload or publication was performed.
 
+Smoke helpers create their own private temporary HOME and evidence directory;
+no output directory or executable path is accepted from argv/environment.
+Evidence names have a fixed allowlist and exclusive creation prevents overwrites.
+The package smoke chooses its executable from a platform/architecture allowlist,
+verifies realpath containment under this repository's dist, and rejects redirected
+dist directories and escaping artifact symlinks. It spawns an argument array with
+shell disabled. Traversal, absolute paths, symlink escape, overwrite attempts and
+untrusted executable arguments have regressions.
+
+Run `MULTRIN_SMOKE_NATIVE_MOUSE=1 npx electron tests/gui-smoke.cjs` on macOS
+for the isolated GUI/native check, then `node tests/package-smoke.cjs` after
+packaging. Each command prints the evidence directory it created. The Windows
+URL regression forces both Windows drive-letter and POSIX app.asar paths on
+every host; it does not assume the host's file URL format.
+
 The macOS and Windows CI matrix uses Node 24, clean install, full audit, tests,
 typecheck, lint and a local package. Windows native/GUI operation is not claimed
 from the local macOS run; CI provides the corresponding build checks. Automatic

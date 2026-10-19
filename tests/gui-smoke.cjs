@@ -1,10 +1,13 @@
-// Run with Electron and a disposable HOME; never touches the user's ~/.multrin.
+// Run with Electron; the helper creates a disposable HOME and evidence directory.
 const assert = require('node:assert/strict');
 const fs = require('node:fs'); const path = require('node:path');
 const {app,BrowserWindow,systemPreferences} = require('electron');
 const root=path.join(__dirname,'..');app.setAppPath(root);
-const home=require('node:os').homedir();
-if(!home.includes('multrin-smoke-')) throw new Error('GUI smoke requires a disposable multrin-smoke- HOME');
+const context=require('./smoke-context.cjs').createSmokeContext();
+const home=context.home;
+process.env.HOME=home;
+process.env.USERPROFILE=home;
+console.log('Smoke evidence: '+context.output);
 fs.mkdirSync(path.join(home,'.multrin'),{recursive:true});
 fs.writeFileSync(path.join(home,'.multrin/settings.json'),JSON.stringify({dark:true,fixture:'keep'}));
 const errors=[];const created=[];
@@ -42,14 +45,14 @@ app.whenReady().then(async()=>{
    nativeMouseEvents=nativeMouseEvents.slice(down,up+1);
    hook.removeAllListeners();
  }
- const output=process.env.MULTRIN_SMOKE_OUTPUT;if(output){fs.mkdirSync(output,{recursive:true});fs.writeFileSync(path.join(output,'gui-main.png'),(await main.webContents.capturePage()).toPNG());}
+ context.writeEvidence('gui-main.png',(await main.webContents.capturePage()).toPNG());
  const popup=windows.find(w=>w.getParentWindow());popup.show();await new Promise(r=>setTimeout(r,200));
  const menuText=await popup.webContents.executeJavaScript('document.body.innerText');assert.ok(menuText.length>0);
- if(output)fs.writeFileSync(path.join(output,'gui-menu.png'),(await popup.webContents.capturePage()).toPNG());
+ context.writeEvidence('gui-menu.png',(await popup.webContents.capturePage()).toPNG());
  const blocked=await main.webContents.executeJavaScript(`window.open('https://example.invalid') === null`);assert.equal(blocked,true);
  const result={electron:process.versions.electron,node:process.versions.node,arch:process.arch,mainRendered:true,menuRendered:true,nativeMouseEvents:[...nativeMouseEvents],remoteWindow:true,settingsPreserved:state.settings,externalPopupBlocked:true,nativeWindowCount:require('node-window-manager').windowManager.getWindows().length,iconBytes:require('extract-file-icon')(process.execPath,16).length,accessibility:process.platform==='darwin'?systemPreferences.isTrustedAccessibilityClient(false):null,errors};
  assert.deepEqual(errors,[]);assert.equal(JSON.parse(fs.readFileSync(path.join(home,'.multrin/settings.json'))).fixture,'keep');
- if(output)fs.writeFileSync(path.join(output,'gui-smoke.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));clearTimeout(timeout);
+ context.writeEvidence('gui-smoke.json',JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));clearTimeout(timeout);
  for(const window of created) if(!window.isDestroyed()) window.close();
  app.quit();
 }).catch(error=>{console.error(error);clearTimeout(timeout);
