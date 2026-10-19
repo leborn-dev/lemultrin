@@ -1,77 +1,111 @@
-# Dependency security maintenance (2026-10-18)
+# Dependency security maintenance (2026-10-19)
 
-This update refreshes compatible Yarn dependencies, updates webpack-cli
-3.3.11 -> 3.3.12 (which accepts patched loader-utils 1.4.x), and updates
-@types/styled-components 5.1.0 -> 5.1.9 (which no longer pulls unused React Native
-types/tooling). Electron major version and native addon ABI are unchanged. The icon color
-calculation now validates the PNG boundary before the inherited format sniffer.
+This migration supersedes the 2026-10-18 mitigation. The old Electron 8,
+webpack 4, iohook/request installer and node-vibrant/Jimp/file-type trees have
+been removed from the real dependency graph. npm's lockfile is the single
+package-manager source; use `npm ci` rather than Yarn.
 
-A single scoped Yarn resolution selects form-data 2.5.6 only for
-`iohook/nugget/request/form-data`. Request 2.88.2 pins `~2.3.2`, so ordinary
-compatible refresh cannot reach the security fixes. This resolution deliberately
-crosses that minor range within form-data major 2; it does not replace request,
-iohook, or their native binding. Yarn's incompatible-range warning is expected.
+## Runtime and compatibility
 
-The official advisories require 2.5.4 for unpredictable multipart boundaries
-(GHSA-fjxv-7rqg-78g4) and 2.5.6 for multipart field/filename CRLF escaping
-(GHSA-hmw2-7cc7-3qxx). Both fixes are covered by `yarn test:installer`: the test
-resolves the real installer dependency chain without loading native iohook,
-checks that boundary generation does not call Math.random, checks CRLF header
-escaping, and uses the actual request package for a localhost multipart
-field/binary-file roundtrip including boundary/content-length verification.
-The boundary regression failed against form-data 2.3.3 before this resolution.
+- Electron 44.9.0 replaces Electron 8. Official Electron 44 support ends on
+  2027-03-02. macOS 13+ and 64-bit operating systems are now required.
+- uiohook-napi 1.5.5 provides N-API global input monitoring. `input-hook.ts`
+  preserves the application's mousedown/mousedrag/mouseup string event types,
+  screen coordinates, ordered release and EventEmitter once semantics. Native,
+  activation and IPC listeners are released when their window closes, and late
+  callbacks guard against destroyed windows. Only
+  left-button drags capture windows. On macOS monitoring waits for the existing
+  Accessibility grant; permissions are not bypassed or changed by tests.
+- node-window-manager 2.2.4 and extract-file-icon 0.3.2 retain the native window
+  operations. They compile from source for the target architecture.
+- PNG-only pngjs 7 decoding replaces generic image sniffing. Bounded input,
+  dimensions, structure and CRC checks reject malformed icons. A separable area
+  downsample preserves the legacy Vibrant quality-5 behavior; the maintained
+  Vibrant 4 MMCQ quantizer/generator preserve tab color selection. The native
+  executable icon fixture remains exactly `#639b7f`; RGB, transparency, 1px,
+  corrupt CRC and ASF regressions are included. No Jimp/file-type decoder is
+  installed. Icons remain displayed even if palette extraction fails.
+- Existing React 16/MobX 5 UI behavior and `~/.multrin/settings.json` are retained.
+  TypeScript checks application code without `skipLibCheck`. The documented
+  Windows-controls type path avoids that package's broken root reference while
+  runtime imports continue to use its original bundle.
 
-Validation: fresh isolated Node 14.21.3 and Node 22.23.3 Linux containers each
-passed `yarn install --frozen-lockfile --ignore-scripts --non-interactive`,
-`yarn test:installer`, and `yarn build`, producing the main/renderer bundles and
-HTML. Node 14 was a legacy compiler compatibility check, not a recommendation
-for a new deployment. Native install scripts were intentionally disabled.
-Electron GUI, native rebuild, packaging, window embedding, and auto-update were
-not validated. Full development type checking is not established by the
-production transpile-only Webpack build.
+## Build dependencies and the one override
 
-Yarn audit's advisory/path count decreased from 501 (critical41/high239/
-moderate175/low46) to 134 (critical0/high60/moderate63/low11). These are
-advisory-resolution-path counts, not GitHub alert counts or proof that the app
-is secure. Remaining findings include the unsupported Electron 8 and Webpack 4
-stack, request/tough-cookie in the native install downloader, and packages with
-no patched release such as request, ip, elliptic, and some transitive utilities.
-The form-data resolution does not fix request's separate SSRF advisory.
-Modernizing Electron/native addons requires platform GUI/ABI validation and is
-outside this narrowly tested update. No audit suppression or alert dismissal is
-used.
+Webpack 5, TypeScript 5.9, ESLint 10, builder 26.15 and updater 6.8 replace the
+legacy toolchain. The old development server's unpatched braces/micromatch
+chain is replaced with a small Node HTTP server: loopback binding, Host checks,
+allowed methods and MIME types, realpath containment and symlink protection.
+Webpack watch still rebuilds automatically; renderer reload is manual.
+
+`@electron/get` is overridden to 5.1.0 throughout the tree. Builder's older
+transitive get 3 pulls global-agent/roarr/sprintf-js, whose precision DoS has no
+patched release. get 5 removes that chain and exposes the downloadArtifact,
+ElectronDownloadCacheMode and related APIs used by builder. Node >=22.13
+supports its ESM interop. The actual Electron download, native rebuild and
+unsigned arm64 app package succeeded with this override. It is not an audit
+ignore, inert resolution or warning dismissal.
+
+The old installer multipart test covered only iohook -> nugget -> request.
+That downloader no longer exists; its specialized test is retired with it.
+Input event regressions, native loads and GUI/package checks replace validation
+of the real functionality. This also removes the old test server's reflected
+error-message response reported by CodeQL.
+
+## Privileged renderer trust boundary
+
+The existing application uses Node integration and the official
+`@electron/remote` replacement for removed Electron remote APIs. Context
+isolation and sandboxing remain disabled for these legacy views. Each window
+is confined to its exact bundled file URL, including packaged app.asar URLs;
+remote is enabled only for those application windows. External navigation,
+redirects, popups, webview attachment and permission requests are denied.
+
+The only development document origin is `http://localhost:4444`, served by the
+loopback-only asset server. Development assumes trusted local source and a
+trusted local account; do not run a privileged development build against
+untrusted source or a substituted local service.
+
+Source inspection found no dangerouslySetInnerHTML, innerHTML, eval, new
+Function, external document loading, iframe or shell.openExternal call.
+Native and edited tab titles render as React text, which escapes markup. Icon
+bytes become Blob URLs rather than HTML or an external URL. Font/style
+textContent values use bundled assets. User-selected window icons are opened
+as local nativeImage paths. No remote document is deliberately granted Node.
+
+## Verification
+
+On macOS 27.2 arm64, host Node **22.23.1**, npm **10.9.8**:
+
+- clean `npm ci --foreground-scripts`, including native compilation: passed;
+- full `npm audit --json`: **0 vulnerabilities**, production and development;
+- `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`: passed;
+- Electron 44.9.0 / embedded Node 24.22.0 real GUI: main and menu render, remote
+  window lookup, pre-existing settings read/preservation, external popup denial;
+- real OS mouse down/drag/up events traverse the native hook and adapter with
+  expected coordinates and ordering, inside the disposable smoke window;
+- native window enumeration and icon extraction load on the actual Electron
+  runtime; unsigned arm64 packaging rebuilds native modules against Electron;
+- packaged binary loads `app.asar/build/app.html`, retains the settings fixture,
+  supports remote window lookup, loads native window operations and blocks
+  external popups. No signing, release upload or publication was performed.
+
+The macOS and Windows CI matrix uses Node 24, clean install, full audit, tests,
+typecheck, lint and a local package. Windows native/GUI operation is not claimed
+from the local macOS run; CI provides the corresponding build checks. Automatic
+update installation against a real release server is not exercised.
+
+Rollback: restore the preceding release if necessary; keep a copy of
+`~/.multrin/settings.json`. No data migration or destructive settings rewrite
+is required. Do not publish a rollback containing the retired vulnerable
+runtime as a new supported release.
 
 Sources:
-- https://github.com/advisories/GHSA-fjxv-7rqg-78g4
-- https://github.com/advisories/GHSA-hmw2-7cc7-3qxx
-
-## Image-sniffer advisory boundary
-
-The compatible node-vibrant 3.1.6 update uses Jimp/file-type 16.5.4, which retains
-GHSA-5v7r-6r5c-r473 (ASF parsing infinite loop). Pinning node-vibrant 3.1.5 was
-compared and rejected because it reintroduced jpeg-js high
-GHSA-xvf7-4v9q-58w6 and moderate GHSA-w7q9-p3jq-fmhm. The advisory/path diff is
-recorded in the review evidence; the ASF advisory is not suppressed or resolved
-in the dependency itself.
-
-`prepareContainer` now calls `getIconPalette` for the same extract-file-icon
-Buffer, which is expected to be a 16px PNG. The helper requires the PNG
-signature, a complete IHDR with dimensions 1..512, bounded 4MiB input, and
-bounded complete chunks ending in IEND with image data. Non-Buffers, ASF, empty,
-truncated and structurally invalid containers are skipped before Vibrant's
-format sniffer. PNG pixel decoding and CRC correctness still belong to Jimp;
-the guard is not a full PNG decoder. Decode failures are caught at the actual
-call site instead of becoming unhandled rejections. Normal tab creation and
-the raw icon payload are preserved even if palette extraction is skipped.
-
-`yarn test:icon-palette` checks zero parser calls for rejected input, decodes a
-real generated 32x32 red PNG to RGB [252,4,4], and exercises the actual compiled
-AppWindow.prepareContainer method with native window APIs isolated. It confirms
-normal tab/color events and unchanged icon payloads, plus ASF rejection at the
-real call site. It does not claim Windows/macOS GUI or native binding coverage.
-
-Electron 8 is declared as a devDependency for packaging but is the actual
-runtime of the distributed application, including its bundled Chromium/Node.
-A production-only npm/Yarn filter cannot establish runtime safety. Its obsolete
-runtime and the unverified GUI/native rebuild/installer paths remain explicit
-limitations of this update; no broad Electron migration was performed.
+- https://releases.electronjs.org/schedule
+- https://releases.electronjs.org/release/v44.0.0
+- https://www.electronjs.org/docs/latest/breaking-changes
+- https://github.com/electron/remote
+- https://github.com/SnosMe/uiohook-napi
+- https://github.com/electron/get
+- https://github.com/advisories/GHSA-hp3w-g68c-fv3c
+- https://github.com/advisories/GHSA-vfj7-8cjw-p6xm

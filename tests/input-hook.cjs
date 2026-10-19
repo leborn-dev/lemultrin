@@ -1,0 +1,32 @@
+const assert = require('node:assert/strict');
+const {EventEmitter} = require('node:events');
+const fs = require('node:fs');
+const ts = require('typescript');
+const Module = require('node:module');
+const file = require('node:path').join(__dirname, '../src/main/input-hook.ts');
+const instance = new Module(file, module);
+instance.filename = file;
+instance.paths = Module._nodeModulePaths(require('node:path').dirname(file));
+instance._compile(ts.transpileModule(fs.readFileSync(file, 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText, file);
+const source = new EventEmitter();
+source.start = () => source.emit('started');
+source.stop = () => source.emit('stopped');
+const hook = instance.exports.createInputHook(source);
+const events = [];
+for (const name of ['mousedown','mousedrag','mouseup']) hook.on(name, e => events.push([name,e]));
+source.emit('mousemove', {x:1,y:2});
+source.emit('mousedown', {button:2,x:1,y:2});
+source.emit('mousemove', {x:3,y:4});
+source.emit('mouseup', {button:2,x:3,y:4});
+assert.equal(events.length, 0, 'right button and unpressed moves never capture native windows');
+source.emit('mousedown', {button:1,x:1200,y:-10});
+source.emit('mousemove', {x:1250,y:20});
+source.emit('mouseup', {button:1,x:1300,y:30});
+source.emit('mousemove', {x:1400,y:40});
+assert.deepEqual(events.map(([name,e]) => [name,e.type,e.x,e.y]), [
+ ['mousedown','mousedown',1200,-10],['mousedrag','mousedrag',1250,20],['mouseup','mouseup',1300,30]
+]);
+let once = 0; hook.once('mouseup', () => once++);
+source.emit('mouseup',{button:1,x:0,y:0}); source.emit('mouseup',{button:1,x:0,y:0});
+assert.equal(once, 1);
+console.log('Input adapter: left drag, multi-display coordinates, ordered release, once semantics passed');

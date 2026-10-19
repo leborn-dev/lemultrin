@@ -1,3 +1,4 @@
+import { secureLocalWindow } from '../window-security';
 import { BrowserWindow, app, ipcMain } from 'electron';
 import { join } from 'path';
 import { AppWindow } from './app';
@@ -14,12 +15,14 @@ export class PopupWindow extends BrowserWindow {
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
+        sandbox: false,
       },
       skipTaskbar: true,
       backgroundColor: '#00ffffff',
     });
 
     this.appWindow = appWindow;
+    secureLocalWindow(this, name);
 
     if (process.env.ENV === 'dev') {
       if (devtools) {
@@ -27,7 +30,7 @@ export class PopupWindow extends BrowserWindow {
       }
       this.loadURL(`http://localhost:4444/${name}.html`);
     } else {
-      this.loadURL(join('file://', app.getAppPath(), `build/${name}.html`));
+      this.loadFile(join(app.getAppPath(), `build/${name}.html`));
     }
 
     ipcMain.on(`get-window-id-${this.id}`, e => {

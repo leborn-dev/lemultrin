@@ -1,9 +1,13 @@
-import { ipcMain, app, Menu, webContents } from 'electron';
+import { ipcMain, app, Menu, webContents, systemPreferences } from 'electron';
 import { resolve } from 'path';
 import { platform, homedir } from 'os';
 import { AppWindow } from './windows/app';
 import { autoUpdater } from 'electron-updater';
 import { Settings } from './settings';
+import { createInputHook } from './input-hook';
+import { uIOhook } from 'uiohook-napi';
+import { initialize } from '@electron/remote/main';
+initialize();
 
 app.name = 'Multrin';
 
@@ -27,10 +31,24 @@ if (!gotTheLock) {
 
 export const settings = new Settings();
 
-export const iohook = require('iohook');
+export const iohook = createInputHook(uIOhook);
+let inputStarted = false;
+let accessibilityPoll: ReturnType<typeof setInterval>;
+app.on('will-quit', () => {
+  clearInterval(accessibilityPoll);
+  if (inputStarted) iohook.stop();
+});
 
 app.on('ready', () => {
-  iohook.start();
+  const startInput = () => {
+    if (platform() === 'darwin' && !systemPreferences.isTrustedAccessibilityClient(false)) return;
+    if (!inputStarted) { iohook.start(); inputStarted = true; }
+    clearInterval(accessibilityPoll);
+  };
+  // macOS must grant Accessibility before libuiohook can start safely.
+  // Existing windowManager permission prompt runs when AppWindow is created.
+  startInput();
+  if (!inputStarted) accessibilityPoll = setInterval(startInput, 2000);
 
   // Create our menu entries so that we can use macOS shortcuts
   Menu.setApplicationMenu(

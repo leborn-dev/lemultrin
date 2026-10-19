@@ -17,14 +17,12 @@
       {
         "target": "deb",
         "arch": [
-          "ia32",
           "x64"
         ]
       },
       {
         "target": "AppImage",
         "arch": [
-          "ia32",
           "x64"
         ]
       }
@@ -35,20 +33,27 @@
       {
         "target": "nsis",
         "arch": [
-          "x64",
-          "ia32"
+          "x64"
         ]
       },
       {
         "target": "zip",
         "arch": [
-          "x64",
-          "ia32"
+          "x64"
         ]
       }
     ]
   },
   "mac": {
-    "category": "public.app-category.navigation"
+    "category": "public.app-category.navigation",
+    "target": [
+      {
+        "target": "dmg",
+        "arch": [
+          "arm64",
+          "x64"
+        ]
+      }
+    ]
   }
 }

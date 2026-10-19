@@ -39,6 +39,7 @@ export class ProcessWindow extends Window {
   public detach(mouseup = false) {
     const handler = () => {
       setTimeout(() => {
+        if (this.parentWindow.isDestroyed()) return;
         const b = this.getBounds();
         const a = this.parentWindow.getBounds();
 
