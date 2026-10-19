@@ -30,6 +30,43 @@ package-manager source; use `npm ci` rather than Yarn.
   Windows-controls type path avoids that package's broken root reference while
   runtime imports continue to use its original bundle.
 
+## PNG allocation boundary and populated-tab regression
+
+QA found that pngjs 7's public sync decoder limits ordinary PNG inflation but
+calls unbounded `inflateSync` for Adam7. The icon path now composes unchanged
+pngjs 7.0.0 `parser`, `sync-reader`, `filter-parse-sync`, `bitmapper` and
+`format-normaliser` stages with a local bounded inflation step. No npm package
+source is patched or vendored, and the real package remains in the audited
+lockfile. These private stage APIs are version-pinned and exercised by decoder
+regressions; upgrading pngjs requires reviewing this integration.
+
+The local wrapper validates legal color-type/bit-depth pairs and dimensions,
+rejects duplicate headers, derives the exact scanline length (including filter
+bytes and per-pass byte padding) from the W3C Adam7 geometry, and calls Node
+`inflateSync` with `maxOutputLength` equal to that budget for every PNG. It also
+rejects short output before filtering. At the 512x512 RGBA16 maximum, the
+Adam7 budget is 2,098,112 bytes; a 1x1 RGBA8 image gets a 5-byte budget. QA's
+CRC-valid 16 MiB expanded stream is rejected with `ERR_BUFFER_TOO_LARGE`
+before that output is materialized. Input is copied before decoding to keep
+shared/mutable buffers from changing metadata during the decode pipeline.
+
+Tests retain normal Adam7 RGBA8/RGBA16, packed paletted/grayscale and RGB/alpha
+images, and reject extra/short bytes, duplicate headers, invalid formats, CRC
+errors and the inflated bomb. Ordinary PNG and the legacy native-icon color
+fixture remain unchanged. Sources for the bound:
+[W3C PNG interlacing](https://www.w3.org/TR/png-3/#8Interlace) and
+[Node zlib maxOutputLength](https://nodejs.org/download/release/latest-jod/docs/api/zlib.html).
+
+QA also reproduced an empty renderer after adding a real window: the inherited
+color helper stored its parser on `this`, but strict bundled modules invoke it
+unbound. The parser is now module-local and preserves the blend calculation.
+A regression exercises unbound RGB/hex/alpha calls. The GUI helper adds two
+owned real native fixtures, verifies renderer selection through actual handlers
+and IPC, native raising/geometry, escaped and updated titles, Blob icon and
+computed palette color, settings roundtrip and normal close. macOS's existing
+native manager does not implement opacity APIs; the test explicitly reports
+that capability as false and verifies native selection/raising instead.
+
 ## Build dependencies and the one override
 
 Webpack 5, TypeScript 5.9, ESLint 10, builder 26.15 and updater 6.8 replace the
