@@ -1,5 +1,4 @@
 import { observer } from 'mobx-react-lite';
-import { hot } from 'react-hot-loader/root';
 import * as React from 'react';
 import { createGlobalStyle, ThemeProvider } from 'styled-components';
 
@@ -10,8 +9,7 @@ import store from '../../store';
 
 const GlobalStyle = createGlobalStyle`${Style}`;
 
-export const App = hot(
-  observer(() => {
+export const App = observer(() => {
     return (
       <ThemeProvider
         theme={{
@@ -30,5 +28,4 @@ export const App = hot(
         </React.Fragment>
       </ThemeProvider>
     );
-  }),
-);
+  });

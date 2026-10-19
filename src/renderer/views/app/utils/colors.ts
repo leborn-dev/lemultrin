@@ -1,6 +1,40 @@
+// Module-local parser: tab components call shadeBlendConvert unbound in strict modules.
+const parseColor = (d: any) => {
+  const l = d.length;
+  const RGB: any = {};
+
+  if (l > 9) {
+    d = d.split(',');
+    if (d.length < 3 || d.length > 4) return null; // ErrorCheck
+    (RGB[0] = parseInt(d[0].split('(')[1])),
+      (RGB[1] = parseInt(d[1])),
+      (RGB[2] = parseInt(d[2])),
+      (RGB[3] = d[3] ? parseFloat(d[3]) : -1);
+  } else {
+    if (l === 8 || l === 6 || l < 4) return null; // ErrorCheck
+    if (l < 6) {
+      d = `#${d[1]}${d[1]}${d[2]}${d[2]}${d[3]}${d[3]}${
+        l > 4 ? `${d[4]}${d[4]}` : ''
+      }`;
+    } // 3 or 4 digit
+    (d = parseInt(d.slice(1), 16)),
+      (RGB[0] = (d >> 16) & 255),
+      (RGB[1] = (d >> 8) & 255),
+      (RGB[2] = d & 255),
+      (RGB[3] = -1);
+    if (l === 9 || l === 5) {
+      (RGB[3] = Math.round((RGB[2] / 255) * 10000) / 10000),
+        (RGB[2] = RGB[1]),
+        (RGB[1] = RGB[0]),
+        (RGB[0] = (d >> 24) & 255);
+    }
+  }
+  return RGB;
+};
+
+
 // https://stackoverflow.com/a/13542669
 export const shadeBlendConvert = function (
-  this: any,
   p: any,
   from: any,
   to: any = null,
@@ -15,41 +49,6 @@ export const shadeBlendConvert = function (
   ) {
     return null;
   } // ErrorCheck
-  if (!(this as any).sbcRip) {
-    this.sbcRip = (d: any) => {
-      const l = d.length;
-      const RGB: any = {};
-
-      if (l > 9) {
-        d = d.split(',');
-        if (d.length < 3 || d.length > 4) return null; // ErrorCheck
-        (RGB[0] = i(d[0].split('(')[1])),
-          (RGB[1] = i(d[1])),
-          (RGB[2] = i(d[2])),
-          (RGB[3] = d[3] ? parseFloat(d[3]) : -1);
-      } else {
-        if (l === 8 || l === 6 || l < 4) return null; // ErrorCheck
-        if (l < 6) {
-          d = `#${d[1]}${d[1]}${d[2]}${d[2]}${d[3]}${d[3]}${
-            l > 4 ? `${d[4]}${d[4]}` : ''
-          }`;
-        } // 3 or 4 digit
-        (d = i(d.slice(1), 16)),
-          (RGB[0] = (d >> 16) & 255),
-          (RGB[1] = (d >> 8) & 255),
-          (RGB[2] = d & 255),
-          (RGB[3] = -1);
-        if (l === 9 || l === 5) {
-          (RGB[3] = r((RGB[2] / 255) * 10000) / 10000),
-            (RGB[2] = RGB[1]),
-            (RGB[1] = RGB[0]),
-            (RGB[0] = (d >> 24) & 255);
-        }
-      }
-      return RGB;
-    };
-  }
-  const i = parseInt;
   const r = Math.round;
   let h = from.length > 9;
   h =
@@ -63,8 +62,8 @@ export const shadeBlendConvert = function (
   const b = p < 0;
   p = b ? p * -1 : p;
   to = to && to !== 'c' ? to : b ? '#000000' : '#FFFFFF';
-  const f = this.sbcRip(from);
-  const t = this.sbcRip(to);
+  const f = parseColor(from);
+  const t = parseColor(to);
   if (!f || !t) return null; // ErrorCheck
   if (h) {
     return `rgb${f[3] > -1 || t[3] > -1 ? 'a(' : '('}${r(

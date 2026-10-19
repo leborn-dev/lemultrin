@@ -100,7 +100,7 @@ export class Tab {
   public constructor(id: number, title: string, icon: Buffer) {
     this.id = id;
     this.title = title;
-    this.favicon = URL.createObjectURL(new Blob([icon]));
+    this.favicon = URL.createObjectURL(new Blob([new Uint8Array(icon)]));
 
     this.select();
   }

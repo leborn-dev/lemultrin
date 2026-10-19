@@ -45,35 +45,30 @@ If you have found any bugs or just want to see some new features in Multrin, fee
 
 Before running Multrin in development mode, please ensure you have [`Node.js`](https://nodejs.org/en/) installed on your machine.
 
-When running on Windows, make sure you have build tools installed. You can install them by running as **administrator**:
+Use Node.js 24 LTS (minimum 22.13), Python 3, and native build tools.
+On Windows install Visual Studio Build Tools with the Desktop development with
+C++ workload. On macOS install Xcode Command Line Tools (`xcode-select --install`).
+Electron 44 requires macOS 13 or later; desktop packages are 64-bit only.
 
 ```bash
-$ npm i -g windows-build-tools
+npm ci
+npm test
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-Firstly, run this command to install all needed dependencies. If you have encountered any problems, please report it. I will try to help as much as I can.
+For development, run `npm run watch`, then `npm start` in another terminal.
+The development server binds only to loopback. Rebuilds are automatic; reload the
+window after editing renderer code. For a local unsigned package, run
+`npm run package`. Packaging commands never publish automatically.
 
-```bash
-$ npm i
-```
+On macOS, global window dragging needs Accessibility permission. The existing
+system prompt opens on launch; input monitoring starts only after access has
+been granted. Native modules can be rebuilt with `npm run rebuild`.
 
-Now the native modules need to be rebuilt with Electron's headers. To do that, please run:
-
-```bash
-$ npm run rebuild
-```
-
-The given command below will run Multrin in the development mode.
-
-```bash
-$ npm run dev
-```
-
-And in other terminal:
-
-```bash
-$ npm start
-```
+Existing settings stay in `~/.multrin/settings.json`. See
+[DEPENDENCY-SECURITY.md](DEPENDENCY-SECURITY.md) for migration and verification details.
 
 ### Sponsors
 

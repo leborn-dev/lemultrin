@@ -14,7 +14,7 @@ import {
   StyledInput,
 } from './style';
 import { shadeBlendConvert } from '../../utils';
-import { remote } from 'electron';
+import * as remote from '@electron/remote';
 
 const removeTab = (tab: Tab) => () => {
   tab.close();

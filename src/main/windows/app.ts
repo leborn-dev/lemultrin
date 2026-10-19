@@ -1,3 +1,4 @@
+import { secureLocalWindow } from '../window-security';
 import {
   BrowserWindow,
   app,
@@ -62,11 +63,14 @@ export class AppWindow extends BrowserWindow {
       fullscreenable: false,
       titleBarStyle: 'hiddenInset',
       webPreferences: {
-        plugins: true,
         nodeIntegration: true,
+        contextIsolation: false,
+        sandbox: false,
       },
       icon: resolve(app.getAppPath(), 'static/app-icons/icon.png'),
     });
+
+    secureLocalWindow(this, 'app');
 
     const { x, y } = screen.getCursorScreenPoint();
     const currentDisplay = screen.getDisplayNearestPoint({ x, y });
@@ -82,7 +86,7 @@ export class AppWindow extends BrowserWindow {
 
       this.loadURL('http://localhost:4444/app.html');
     } else {
-      this.loadURL(join('file://', app.getAppPath(), 'build/app.html'));
+      this.loadFile(join(app.getAppPath(), 'build/app.html'));
     }
 
     if (platform() === 'win32' || platform() === 'darwin') {
@@ -92,6 +96,11 @@ export class AppWindow extends BrowserWindow {
 
   public activateWindowCapturing() {
     windowManager.requestAccessibility();
+    const ipcListeners: Array<[string, (...args: any[]) => void]> = [];
+    const listen = (channel: string, listener: (...args: any[]) => void) => {
+      ipcMain.on(channel, listener);
+      ipcListeners.push([channel, listener]);
+    };
 
     if (process.platform === 'win32') {
       this.window = new Window(this.getHandle());
@@ -131,38 +140,38 @@ export class AppWindow extends BrowserWindow {
 
     this.interval = setInterval(this.intervalCallback, 100);
 
-    ipcMain.on('select-window', (e, id: number) => {
+    listen('select-window', (e, id: number) => {
       this.selectContainer(this.containers.find((x) => x.id === id));
     });
 
-    ipcMain.on('new-tab', () => {
+    listen('new-tab', () => {
       this.newTab();
     });
 
-    ipcMain.on('detach-window', (e, id: number) => {
+    listen('detach-window', (e, id: number) => {
       for (const container of this.containers) {
         container.removeWindow(id, true);
       }
       this.draggedWindow = null;
     });
 
-    ipcMain.on(`menu-toggle-${this.id}`, () => {
+    listen(`menu-toggle-${this.id}`, () => {
       this.menu.toggle();
     });
 
-    ipcMain.on(`toggle-attaching-${this.id}`, (e, value) => {
+    listen(`toggle-attaching-${this.id}`, (e, value) => {
       this.attachingEnabled = value;
     });
 
-    ipcMain.on(`get-title-${this.id}`, (e) => {
+    listen(`get-title-${this.id}`, (e) => {
       e.returnValue = this.getTitle();
     });
 
-    ipcMain.on(`set-title-${this.id}`, (e, title) => {
+    listen(`set-title-${this.id}`, (e, title) => {
       this.setTitle(title);
     });
 
-    ipcMain.on(`change-icon-${this.id}`, async () => {
+    listen(`change-icon-${this.id}`, async () => {
       const dialogRes = await dialog.showOpenDialog(this, {
         filters: [{ name: 'All Files', extensions: ['*'] }],
       });
@@ -170,7 +179,8 @@ export class AppWindow extends BrowserWindow {
       this.setIcon(nativeImage.createFromPath(dialogRes.filePaths[0]));
     });
 
-    windowManager.on('window-activated', (window: Window) => {
+    const onWindowActivated = (window: Window) => {
+      if (this.isDestroyed()) return;
       this.controlShortcuts(window.id);
 
       if (!this.isFocused()) return;
@@ -181,12 +191,13 @@ export class AppWindow extends BrowserWindow {
           break;
         }
       }
-    });
+    };
 
-    iohook.on('mousedown', ({ x, y }: any) => {
-      if (this.isMinimized()) return;
+    const onMouseDown = ({ x, y }: any) => {
+      if (this.isDestroyed() || this.isMinimized()) return;
 
       setTimeout(() => {
+        if (this.isDestroyed()) return;
         if (
           y >= this.getBounds().y &&
           y <= this.getBounds().y + TOOLBAR_HEIGHT
@@ -206,13 +217,14 @@ export class AppWindow extends BrowserWindow {
           this.draggedWindow = new ProcessWindow(id, this);
         }
       }, 50);
-    });
+    };
 
-    iohook.on('mousedrag', async (e: any) => {
+    const onMouseDrag = (e: any) => {
       this.mouseDragWindow(e);
-    });
+    };
 
-    iohook.on('mouseup', async (e: any) => {
+    const onMouseUp = (e: any) => {
+      if (this.isDestroyed()) return;
       this.isMoving = false;
 
       if (process.platform === 'win32' && this.isFocused()) {
@@ -225,7 +237,7 @@ export class AppWindow extends BrowserWindow {
 
       if (this.isUpdatingContentBounds) {
         setTimeout(() => {
-          if (this.selectedContainer) {
+          if (!this.isDestroyed() && this.selectedContainer) {
             this.selectedContainer.rearrangeWindows();
           }
         }, 100);
@@ -263,7 +275,21 @@ export class AppWindow extends BrowserWindow {
 
       this.draggedContainer = null;
       this.draggedIn = false;
-    });
+    };
+    windowManager.on('window-activated', onWindowActivated);
+    iohook.on('mousedown', onMouseDown);
+    iohook.on('mousedrag', onMouseDrag);
+    iohook.on('mouseup', onMouseUp);
+    const cleanup = () => {
+      clearInterval(this.interval);
+      windowManager.removeListener('window-activated', onWindowActivated);
+      iohook.removeListener('mousedown', onMouseDown);
+      iohook.removeListener('mousedrag', onMouseDrag);
+      iohook.removeListener('mouseup', onMouseUp);
+      for (const [channel, listener] of ipcListeners) ipcMain.removeListener(channel, listener);
+    };
+    this.on('close', cleanup);
+    this.on('closed', cleanup);
   }
 
   private controlShortcuts(id: number) {
@@ -322,6 +348,7 @@ export class AppWindow extends BrowserWindow {
   };
 
   public mouseDragWindow(e: any) {
+    if (this.isDestroyed()) return;
     if (
       !this.isMinimized() &&
       this.draggedWindow &&

@@ -6,7 +6,9 @@ const os = platform();
 let npm = os === 'win32' ? 'npm.cmd' : 'npm';
 
 const runScript = script => {
-  spawn(npm, ['run', script], { cwd: __dirname, stdio: 'inherit' });
+  const child = spawn(npm, ['run', script], { cwd: require('path').join(__dirname, '..'), stdio: 'inherit' });
+  child.on('exit', code => { process.exitCode = code || 0; });
+  child.on('error', error => { console.error(error); process.exitCode = 1; });
 };
 
 const { TRAVIS_COMMIT_MESSAGE } = process.env;

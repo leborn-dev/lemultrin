@@ -1,8 +1,8 @@
 import { observable, computed } from 'mobx';
 import { TabsStore } from './tabs';
 
-import { ipcRenderer, remote } from 'electron';
-import { getPath } from '~/shared/utils/paths';
+import { ipcRenderer } from 'electron';
+import * as remote from '@electron/remote';
 import { AddTabStore } from './add-tab';
 
 export class Store {

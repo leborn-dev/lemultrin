@@ -3,10 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const Module = require('module');
 const ts = require('typescript');
-const Vibrant = require('node-vibrant');
+const zlib = require('node:zlib');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAK0lEQVR4nO3OIQEAAAwEoetfeovxBoGnq1tKQEBAQEBAQEBAQEBAQEBgHXhUDfhqRFDd3gAAAABJRU5ErkJggg==', 'base64');
 function loadPalette() {
-  if (process.env.TEST_UNGUARDED_PALETTE) return icon => Vibrant.from(icon).getPalette();
   const file = path.join(__dirname, '../src/main/icon-palette.ts');
   const compiled = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2018}
@@ -19,9 +18,9 @@ function loadPalette() {
 }
 (async () => {
   const getPalette = loadPalette();
-  const originalFrom = Vibrant.from;
+  const originalRead = zlib.inflateSync;
   let calls = 0;
-  Vibrant.from = () => { calls++; return {getPalette: () => Promise.resolve({unexpected: true})}; };
+  zlib.inflateSync = () => { calls++; throw new Error('invalid input reached PNG decoder'); };
   try {
     const asfHeader = Buffer.from('3026b2758e66cf11a6d900aa0062ce6c', 'hex');
     for (const input of [null, undefined, '', 'https://example.invalid/icon.png', Buffer.alloc(0),
@@ -30,7 +29,7 @@ function loadPalette() {
       assert.equal(await getPalette(input), null, 'non-PNG input is skipped');
     }
     assert.equal(calls, 0, 'non-PNG and ASF bytes never enter the format-sniffing parser');
-  } finally { Vibrant.from = originalFrom; }
+  } finally { zlib.inflateSync = originalRead; }
   const palette = await getPalette(png);
   assert.ok(palette && palette.Vibrant, 'real file-icon-shaped PNG has a vibrant swatch');
   const rgb = palette.Vibrant.rgb;
@@ -65,7 +64,7 @@ function loadPalette() {
   assert.strictEqual(events[0][1].icon, png, 'tab icon payload is unchanged');
   fileIcon = Buffer.from('3026b2758e66cf11a6d900aa0062ce6c', 'hex');
   events.length = 0;
-  Vibrant.from = () => { calls++; throw new Error('ASF reached parser'); };
+  zlib.inflateSync = () => { calls++; throw new Error('ASF reached parser'); };
   try {
     app.prepareContainer(window);
     await new Promise(resolve => setImmediate(resolve));
@@ -73,6 +72,6 @@ function loadPalette() {
     assert.equal(events.length, 1, 'invalid palette input still creates its tab');
     assert.equal(events[0][0], 'add-tab');
     assert.strictEqual(events[0][1].icon, fileIcon, 'tab icon display payload is preserved');
-  } finally { Vibrant.from = originalFrom; }
+  } finally { zlib.inflateSync = originalRead; }
   console.log(JSON.stringify({nonPngParserCalls: calls, appCallSite: true, png: {width: 32, height: 32, vibrantRgb: rgb}}));
 })().catch(error => { console.error(error); process.exitCode = 1; });

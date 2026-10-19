@@ -1,28 +1,36 @@
 {
   "compilerOptions": {
     "outDir": "./build/",
-
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "alwaysStrict": true,
-
     "module": "commonjs",
-    "target": "es6",
+    "target": "es2020",
     "jsx": "react",
     "allowJs": true,
     "sourceMap": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "lib": ["dom", "esnext"],
+    "lib": [
+      "dom",
+      "es2022"
+    ],
     "experimentalDecorators": true,
-
     "baseUrl": "./",
-
     "paths": {
-      "~/*": ["src/*"]
+      "~/*": [
+        "src/*"
+      ],
+      "react-windows-controls": [
+        "node_modules/react-windows-controls/build/components/WindowsControls/index.d.ts"
+      ]
     }
   },
-  "exclude": ["node_modules/"],
-  "include": ["src/"]
+  "exclude": [
+    "node_modules/"
+  ],
+  "include": [
+    "src/"
+  ]
 }

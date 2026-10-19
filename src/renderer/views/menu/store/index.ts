@@ -1,4 +1,5 @@
-import { remote, ipcRenderer } from 'electron';
+import { ipcRenderer } from 'electron';
+import * as remote from '@electron/remote';
 import { observable } from 'mobx';
 import * as React from 'react';
 import { Textfield } from '~/renderer/components/Textfield';
